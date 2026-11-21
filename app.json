@@ -1,15 +1,17 @@
 {
   "expo": {
-    "name": "tracking-app",
-    "slug": "tracking-app",
+    "name": "Finance Manager",
+    "slug": "finance-manager",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.financemanager.app"
     },
     "android": {
+      "package": "com.financemanager.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -20,6 +22,17 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-sharing",
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "7ef0233c-6fe5-4079-8031-ef0b151ef6ef"
+      }
+    },
+    "owner": "lalit1431team"
   }
 }
