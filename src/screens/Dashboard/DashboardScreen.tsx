@@ -1,16 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Text, Card, Surface, Button, Divider } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { BarChart } from 'react-native-chart-kit';
 import { RootStackParamList } from '../../navigation/types';
 import { useAppTheme } from '../../theme';
 import { useFinanceStore } from '../../store/financeStore';
 import { formatPaiseToRupees } from '../../utils/currency';
 import { getCurrentMonthRange, formatDisplayDate } from '../../utils/dateUtils';
-import { analyticsService, ExtendedKPIs, MonthlyTrendData } from '../../services/analyticsService';
+import { analyticsService, ExtendedKPIs } from '../../services/analyticsService';
 import { goalRepository } from '../../database/goalRepository';
 import { FinancialGoal } from '../../types';
 
@@ -24,15 +23,12 @@ export const DashboardScreen = () => {
   const { monthName } = getCurrentMonthRange();
 
   const [extendedKPIs, setExtendedKPIs] = useState<ExtendedKPIs | null>(null);
-  const [trendData, setTrendData] = useState<MonthlyTrendData | null>(null);
   const [dashboardGoals, setDashboardGoals] = useState<FinancialGoal[]>([]);
 
   const loadData = () => {
     refreshAll();
     const ext = analyticsService.getExtendedKPIs();
     setExtendedKPIs(ext);
-    const trends = analyticsService.getLast6MonthsTrends();
-    setTrendData(trends);
     const goalsList = goalRepository.getAll(true);
     setDashboardGoals(goalsList);
   };
@@ -47,8 +43,6 @@ export const DashboardScreen = () => {
     (sum, acc) => sum + (acc.current_balance_paise ?? 0),
     0
   );
-
-  const screenWidth = Dimensions.get('window').width;
 
   return (
     <ScrollView
@@ -325,48 +319,6 @@ export const DashboardScreen = () => {
               </Text>
             </View>
           </View>
-        </Surface>
-      )}
-
-      {/* Visual Bar Chart: 6 Months Expense Trend (Shown if any expenses recorded) */}
-      {trendData && trendData.labels.length > 0 && trendData.expenseRupees.some((v) => v > 0) && (
-        <Surface style={[styles.chartCard, { backgroundColor: theme.colors.surface }]} elevation={2}>
-          <Text variant="titleMedium" style={{ color: theme.colors.onSurface, fontWeight: '700', marginBottom: 4 }}>
-            6-Month Expense Trends
-          </Text>
-          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 8 }}>
-            Monthly spending history (₹)
-          </Text>
-
-          <BarChart
-            data={{
-              labels: trendData.labels,
-              datasets: [
-                {
-                  data: trendData.expenseRupees,
-                },
-              ],
-            }}
-            width={screenWidth - 48}
-            height={200}
-            yAxisLabel="₹"
-            yAxisSuffix=""
-            chartConfig={{
-              backgroundColor: theme.colors.surface,
-              backgroundGradientFrom: theme.colors.surface,
-              backgroundGradientTo: theme.colors.surface,
-              decimalPlaces: 0,
-              color: () => theme.colors.primary,
-              labelColor: () => theme.colors.onSurfaceVariant,
-              barPercentage: 0.6,
-            }}
-            style={{
-              borderRadius: 12,
-              paddingRight: 16,
-            }}
-            showValuesOnTopOfBars={false}
-            fromZero={true}
-          />
         </Surface>
       )}
 
@@ -702,12 +654,6 @@ const styles = StyleSheet.create({
     width: 1,
     height: '100%',
     marginHorizontal: 8,
-  },
-  chartCard: {
-    borderRadius: 18,
-    padding: 14,
-    marginBottom: 16,
-    alignItems: 'center',
   },
   sectionHeaderRow: {
     flexDirection: 'row',
