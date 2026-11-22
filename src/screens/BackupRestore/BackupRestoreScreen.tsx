@@ -48,7 +48,7 @@ export const BackupRestoreScreen = () => {
 
       const backupData = {
         app: 'Offline Personal Finance Manager',
-        version: '1.0.1',
+        version: '1.0.2',
         exportedAt: new Date().toISOString(),
         data: {
           categories,
