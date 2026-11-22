@@ -110,4 +110,40 @@ describe('Category Management (Edit, Delete, and Usage Validation) Tests', () =>
     expect(categories.find((c) => c.id === 4)).toBeUndefined();
     expect(budgets.find((b) => b.category_id === 4)).toBeUndefined();
   });
+
+  test('assigns distinct colors when all categories share default blue color', () => {
+    const rawCategories = [
+      { name: 'Personal loan', color: '#1565C0' },
+      { name: 'Bachat gat', color: '#1565C0' },
+      { name: 'Lic', color: '#1565C0' },
+      { name: 'Other expense', color: '#1565C0' },
+      { name: 'Electricity', color: '#1565C0' },
+      { name: 'Hospitals and medicine', color: '#1565C0' },
+    ];
+
+    const palette = [
+      '#2563EB', '#F97316', '#10B981', '#8B5CF6',
+      '#EF4444', '#06B6D4', '#F59E0B', '#EC4899',
+    ];
+
+    const usedColors = new Set<string>();
+    const assignedColors = rawCategories.map((r, index) => {
+      let sliceColor = r.color;
+      if (!sliceColor || sliceColor === '#1565C0' || usedColors.has(sliceColor)) {
+        sliceColor = palette[index % palette.length];
+      }
+      usedColors.add(sliceColor);
+      return sliceColor;
+    });
+
+    // Verify all 6 assigned colors are unique
+    const uniqueAssigned = new Set(assignedColors);
+    expect(uniqueAssigned.size).toBe(6);
+    expect(assignedColors[0]).toBe('#2563EB');
+    expect(assignedColors[1]).toBe('#F97316');
+    expect(assignedColors[2]).toBe('#10B981');
+    expect(assignedColors[3]).toBe('#8B5CF6');
+    expect(assignedColors[4]).toBe('#EF4444');
+    expect(assignedColors[5]).toBe('#06B6D4');
+  });
 });

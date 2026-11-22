@@ -23,6 +23,31 @@ export interface ChartCategoryData {
   legendFontSize: number;
 }
 
+export const CHART_PALETTES = {
+  EXPENSE: [
+    '#2563EB', // Vibrant Royal Blue
+    '#F97316', // Bright Orange
+    '#10B981', // Emerald Green
+    '#8B5CF6', // Purple / Violet
+    '#EF4444', // Crimson Red
+    '#06B6D4', // Cyan
+    '#F59E0B', // Amber
+    '#EC4899', // Pink
+    '#6366F1', // Indigo
+    '#14B8A6', // Teal
+  ],
+  INCOME: [
+    '#10B981', // Emerald Green
+    '#06B6D4', // Cyan
+    '#3B82F6', // Blue
+    '#8B5CF6', // Purple
+    '#F59E0B', // Amber
+    '#EC4899', // Pink
+    '#14B8A6', // Teal
+    '#F97316', // Orange
+  ],
+};
+
 export const analyticsService = {
   getExtendedKPIs: (): ExtendedKPIs => {
     const db = getDb();
@@ -143,12 +168,25 @@ export const analyticsService = {
       [type, startDate, endDate]
     );
 
-    return rows.map((r) => ({
-      name: r.name,
-      amountRupees: Math.round(r.amount_paise / 100),
-      color: r.color || (type === 'INCOME' ? '#10B981' : '#1565C0'),
-      legendFontColor,
-      legendFontSize: 12,
-    }));
+    const palette = type === 'INCOME' ? CHART_PALETTES.INCOME : CHART_PALETTES.EXPENSE;
+    const usedColors = new Set<string>();
+
+    return rows.map((r, index) => {
+      let sliceColor = r.color;
+      // If color is missing, default generic blue, or already used by another slice,
+      // assign a distinct contrasting palette color so every section is clearly visible
+      if (!sliceColor || sliceColor === '#1565C0' || usedColors.has(sliceColor)) {
+        sliceColor = palette[index % palette.length];
+      }
+      usedColors.add(sliceColor);
+
+      return {
+        name: r.name,
+        amountRupees: Math.round(r.amount_paise / 100),
+        color: sliceColor,
+        legendFontColor,
+        legendFontSize: 11,
+      };
+    });
   },
 };

@@ -73,7 +73,8 @@ export const CategoriesScreen = () => {
   const handleOpenCreate = () => {
     setEditingCategory(null);
     setCatName('');
-    setSelectedColor(PRESET_COLORS[0]);
+    const nextColor = PRESET_COLORS[categories.length % PRESET_COLORS.length];
+    setSelectedColor(nextColor);
     setSelectedIcon(PRESET_ICONS[0]);
     setModalVisible(true);
   };

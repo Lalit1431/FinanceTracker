@@ -8,7 +8,7 @@ import { useAppTheme } from '../../theme';
 import { getDb } from '../../database/database';
 import { formatPaiseToRupees } from '../../utils/currency';
 import { getCurrentMonthRange } from '../../utils/dateUtils';
-import { analyticsService, ChartCategoryData } from '../../services/analyticsService';
+import { analyticsService, ChartCategoryData, CHART_PALETTES } from '../../services/analyticsService';
 import { reportService } from '../../services/reportService';
 import { DateRangeFilter } from '../../components/DateRangeFilter';
 
@@ -65,8 +65,6 @@ export const ReportsScreen = () => {
       [reportType, start, end]
     );
 
-    setCategoryBreakdown(catRows);
-
     // Fetch Pie Chart distribution
     const chartData = analyticsService.getCategoryDistribution(
       start,
@@ -75,6 +73,20 @@ export const ReportsScreen = () => {
       theme.colors.onSurfaceVariant
     );
     setPieData(chartData);
+
+    // Map chart colors to category breakdown rows for visual consistency
+    const colorByName = new Map<string, string>();
+    chartData.forEach((item) => colorByName.set(item.name, item.color));
+
+    const palette = CHART_PALETTES[reportType];
+    const enrichedRows = catRows.map((cat, idx) => ({
+      ...cat,
+      color:
+        colorByName.get(cat.name) ||
+        (cat.color && cat.color !== '#1565C0' ? cat.color : palette[idx % palette.length]),
+    }));
+
+    setCategoryBreakdown(enrichedRows);
   };
 
   useEffect(() => {
