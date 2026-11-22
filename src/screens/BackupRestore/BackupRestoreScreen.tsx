@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert } from 'react-native';
 import { Text, Surface, Button, TextInput, Portal, Dialog } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { File, Paths } from 'expo-file-system';
@@ -43,18 +43,6 @@ export const BackupRestoreScreen = () => {
 
       const jsonStr = JSON.stringify(backupData, null, 2);
       const fileName = `FinanceManager_Backup_${format(new Date(), 'yyyyMMdd_HHmmss')}.json`;
-
-      if (Platform.OS === 'web') {
-        const blob = new Blob([jsonStr], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        a.click();
-        URL.revokeObjectURL(url);
-        Alert.alert('Backup Created', 'Backup downloaded to your computer');
-        return;
-      }
 
       const backupFile = new File(Paths.document, fileName);
       if (!backupFile.exists) {

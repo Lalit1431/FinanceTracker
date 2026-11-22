@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Platform, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text, TextInput, Chip, Surface, Button } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppTheme } from '../theme';
@@ -154,7 +154,6 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
                 outlineColor={theme.colors.outline}
                 activeOutlineColor={theme.colors.primary}
                 left={<TextInput.Icon icon="calendar-arrow-right" />}
-                {...(Platform.OS === 'web' ? ({ type: 'date' } as any) : {})}
               />
             </View>
 
@@ -177,7 +176,6 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
                 outlineColor={theme.colors.outline}
                 activeOutlineColor={theme.colors.primary}
                 left={<TextInput.Icon icon="calendar-arrow-left" />}
-                {...(Platform.OS === 'web' ? ({ type: 'date' } as any) : {})}
               />
             </View>
           </View>

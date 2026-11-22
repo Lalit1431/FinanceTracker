@@ -1,9 +1,7 @@
-import { Platform } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 
 export const authService = {
   isBiometricAvailable: async (): Promise<boolean> => {
-    if (Platform.OS === 'web') return false;
     try {
       const compatible = await LocalAuthentication.hasHardwareAsync();
       if (!compatible) return false;
@@ -15,7 +13,6 @@ export const authService = {
   },
 
   authenticate: async (): Promise<boolean> => {
-    if (Platform.OS === 'web') return true;
     try {
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: 'Unlock Personal Finance Manager',

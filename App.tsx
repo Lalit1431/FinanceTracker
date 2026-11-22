@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useColorScheme, View, ActivityIndicator, Platform } from 'react-native';
+import { useColorScheme, View, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { PaperProvider } from 'react-native-paper';
 import {
@@ -38,18 +38,16 @@ export default function App() {
       // 3. Load initial financial state
       loadInitialData();
 
-      // 4. Check biometric security setting (Native only)
-      if (Platform.OS !== 'web') {
-        const lockSetting = settingsRepository.get('app_lock', 'none');
-        if (lockSetting === 'biometric') {
-          setIsLocked(true);
-          // Prompt unlock automatically on startup
-          authService.authenticate().then((unlocked) => {
-            if (unlocked) {
-              setIsLocked(false);
-            }
-          });
-        }
+      // 4. Check biometric security setting
+      const lockSetting = settingsRepository.get('app_lock', 'none');
+      if (lockSetting === 'biometric') {
+        setIsLocked(true);
+        // Prompt unlock automatically on startup
+        authService.authenticate().then((unlocked) => {
+          if (unlocked) {
+            setIsLocked(false);
+          }
+        });
       }
     } catch (err) {
       console.error('Failed to initialize app state:', err);

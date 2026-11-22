@@ -1,4 +1,3 @@
-import { Platform } from 'react-native';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { getDb } from '../database/database';
@@ -77,17 +76,6 @@ export const reportService = {
 
     const csvContent = [headers.join(','), ...rows].join('\n');
     const fileName = `Finance_Report_${format(new Date(), 'yyyyMMdd_HHmmss')}.csv`;
-
-    if (Platform.OS === 'web') {
-      const blob = new Blob([csvContent], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      a.click();
-      URL.revokeObjectURL(url);
-      return fileName;
-    }
 
     const reportFile = new File(Paths.document, fileName);
 

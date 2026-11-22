@@ -1,5 +1,6 @@
-import { Platform } from 'react-native';
-import { getWebDb } from './webDatabase';
+import * as SQLite from 'expo-sqlite';
+import { migrations } from './migrations';
+import { seedDatabase } from './seeds';
 
 export interface DatabaseInterface {
   execSync(sql: string): void;
@@ -9,10 +10,50 @@ export interface DatabaseInterface {
   withTransactionSync<T = void>(task: () => T): T;
 }
 
-export const getDb = (): DatabaseInterface => {
-  return getWebDb();
+const DB_NAME = 'finance_manager.db';
+let databaseInstance: SQLite.SQLiteDatabase | null = null;
+
+export const getDb = (): SQLite.SQLiteDatabase => {
+  if (!databaseInstance) {
+    databaseInstance = SQLite.openDatabaseSync(DB_NAME);
+    databaseInstance.execSync('PRAGMA foreign_keys = ON;');
+  }
+  return databaseInstance;
 };
 
-export const initDatabase = (): DatabaseInterface => {
-  return getWebDb();
+export const initDatabase = (): SQLite.SQLiteDatabase => {
+  const db = getDb();
+
+  // Create schema_migrations table
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      version INTEGER PRIMARY KEY,
+      name TEXT NOT NULL,
+      applied_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+    );
+  `);
+
+  // Get applied versions
+  const appliedRows = db.getAllSync<{ version: number }>(
+    'SELECT version FROM schema_migrations ORDER BY version ASC;'
+  );
+  const appliedVersions = new Set(appliedRows.map((r: { version: number }) => r.version));
+
+  // Run pending migrations inside transaction
+  for (const migration of migrations) {
+    if (!appliedVersions.has(migration.version)) {
+      db.withTransactionSync(() => {
+        migration.up(db);
+        db.runSync(
+          'INSERT INTO schema_migrations (version, name) VALUES (?, ?);',
+          [migration.version, migration.name]
+        );
+      });
+    }
+  }
+
+  // Run seeds
+  seedDatabase(db);
+
+  return db;
 };
