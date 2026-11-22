@@ -75,4 +75,21 @@ export const categoryRepository = {
       [isActive ? 1 : 0, id]
     );
   },
+
+  getUsageCount: (id: number): number => {
+    const db = getDb();
+    const result = db.getFirstSync<{ count: number }>(
+      'SELECT COUNT(*) as count FROM transactions WHERE category_id = ?;',
+      [id]
+    );
+    return result?.count ?? 0;
+  },
+
+  delete: (id: number): void => {
+    const db = getDb();
+    db.withTransactionSync(() => {
+      db.runSync('DELETE FROM budgets WHERE category_id = ?;', [id]);
+      db.runSync('DELETE FROM categories WHERE id = ?;', [id]);
+    });
+  },
 };

@@ -159,6 +159,14 @@ class WebDatabase implements DatabaseInterface {
       return { lastInsertRowId: 0, changes: 1 };
     }
 
+    if (s.includes('DELETE FROM categories')) {
+      const [id] = params;
+      this.data.categories = this.data.categories.filter((c) => c.id !== id);
+      this.data.budgets = this.data.budgets.filter((b) => b.category_id !== id);
+      this.save(this.data);
+      return { lastInsertRowId: 0, changes: 1 };
+    }
+
     if (s.includes('INSERT INTO accounts')) {
       const id = Date.now() + Math.floor(Math.random() * 1000);
       const [name, account_type, opening_balance_paise, icon, color] = params;
@@ -328,6 +336,12 @@ class WebDatabase implements DatabaseInterface {
 
     if (s.includes('SELECT COUNT(*) as count FROM app_settings')) {
       return [{ count: Object.keys(this.data.settings).length }] as any;
+    }
+
+    if (s.includes('SELECT COUNT(*) as count FROM transactions WHERE category_id = ?')) {
+      const [catId] = params;
+      const count = this.data.transactions.filter((t) => t.category_id === catId).length;
+      return [{ count }] as any;
     }
 
     if (s.includes('FROM app_settings WHERE setting_key = ?')) {
