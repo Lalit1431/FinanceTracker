@@ -89,4 +89,85 @@ describe('Date Range Filtering Logic & Utility Tests', () => {
     expect(formatDisplayDate('2026-11-21')).toBe('21 Nov 2026');
     expect(formatDisplayDate('invalid-date')).toBe('invalid-date');
   });
+
+  describe('History Filtered KPI Calculations', () => {
+    interface HistoryItemTest {
+      id: number;
+      type?: 'INCOME' | 'EXPENSE';
+      amount_paise: number;
+      isTransfer: boolean;
+      description?: string;
+    }
+
+    const computeFilteredKPIs = (items: HistoryItemTest[]) => {
+      let income = 0;
+      let expense = 0;
+      let transfers = 0;
+
+      for (const item of items) {
+        if (item.isTransfer) {
+          transfers += item.amount_paise;
+        } else if (item.type === 'INCOME') {
+          income += item.amount_paise;
+        } else if (item.type === 'EXPENSE') {
+          expense += item.amount_paise;
+        }
+      }
+
+      return {
+        totalIncomePaise: income,
+        totalExpensePaise: expense,
+        netPaise: income - expense,
+        totalTransfersPaise: transfers,
+        count: items.length,
+      };
+    };
+
+    const mockDataset: HistoryItemTest[] = [
+      { id: 1, type: 'INCOME', amount_paise: 5000000, isTransfer: false, description: 'Monthly Salary' },
+      { id: 2, type: 'EXPENSE', amount_paise: 604100, isTransfer: false, description: 'Personal Loan EMI' },
+      { id: 3, type: 'EXPENSE', amount_paise: 600000, isTransfer: false, description: 'Bachat Gat' },
+      { id: 4, type: 'EXPENSE', amount_paise: 303000, isTransfer: false, description: 'Electricity Bill' },
+      { id: 5, amount_paise: 1000000, isTransfer: true, description: 'ATM Cash Withdrawal' },
+    ];
+
+    test('calculates correct Income, Expense, and Net for All items', () => {
+      const kpis = computeFilteredKPIs(mockDataset);
+      expect(kpis.totalIncomePaise).toBe(5000000); // ₹50,000
+      expect(kpis.totalExpensePaise).toBe(1507100); // ₹15,071
+      expect(kpis.netPaise).toBe(3492900);         // ₹34,929
+      expect(kpis.totalTransfersPaise).toBe(1000000); // ₹10,000
+      expect(kpis.count).toBe(5);
+    });
+
+    test('calculates correct KPIs when filtered by Expense only', () => {
+      const expensesOnly = mockDataset.filter((i) => !i.isTransfer && i.type === 'EXPENSE');
+      const kpis = computeFilteredKPIs(expensesOnly);
+      expect(kpis.totalIncomePaise).toBe(0);
+      expect(kpis.totalExpensePaise).toBe(1507100);
+      expect(kpis.netPaise).toBe(-1507100);
+      expect(kpis.count).toBe(3);
+    });
+
+    test('calculates correct KPIs when search filter is applied (e.g. "Loan")', () => {
+      const searchFiltered = mockDataset.filter(
+        (i) => i.description && i.description.toLowerCase().includes('loan')
+      );
+      const kpis = computeFilteredKPIs(searchFiltered);
+      expect(kpis.totalIncomePaise).toBe(0);
+      expect(kpis.totalExpensePaise).toBe(604100);
+      expect(kpis.netPaise).toBe(-604100);
+      expect(kpis.count).toBe(1);
+    });
+
+    test('calculates correct KPIs when filtered by Transfers only', () => {
+      const transfersOnly = mockDataset.filter((i) => i.isTransfer);
+      const kpis = computeFilteredKPIs(transfersOnly);
+      expect(kpis.totalIncomePaise).toBe(0);
+      expect(kpis.totalExpensePaise).toBe(0);
+      expect(kpis.netPaise).toBe(0);
+      expect(kpis.totalTransfersPaise).toBe(1000000);
+      expect(kpis.count).toBe(1);
+    });
+  });
 });

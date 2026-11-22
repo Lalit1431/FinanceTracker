@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
-import { Searchbar, Chip, Surface, Text } from 'react-native-paper';
+import { Searchbar, Chip, Surface, Text, Divider } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -43,7 +43,6 @@ export const HistoryScreen = () => {
         type: selectedType === 'ALL' ? undefined : (selectedType as TransactionType),
         startDate: startDate.trim() || undefined,
         endDate: endDate.trim() || undefined,
-        limit: 100,
       };
       txns = transactionRepository.getAll(filter);
     }
@@ -52,7 +51,7 @@ export const HistoryScreen = () => {
       trs = transferRepository.getAll({
         startDate: startDate.trim() || undefined,
         endDate: endDate.trim() || undefined,
-        limit: 50,
+        limit: 1000,
       });
       if (searchQuery.trim()) {
         const q = searchQuery.trim().toLowerCase();
@@ -79,6 +78,32 @@ export const HistoryScreen = () => {
     setItems(unified);
   };
 
+  // Dynamically calculate KPIs based on filtered items
+  const { totalIncomePaise, totalExpensePaise, netPaise, totalTransfersPaise } = useMemo(() => {
+    let income = 0;
+    let expense = 0;
+    let transfers = 0;
+
+    for (const item of items) {
+      if (item.isTransfer) {
+        transfers += item.amount_paise;
+      } else {
+        if (item.type === 'INCOME') {
+          income += item.amount_paise;
+        } else if (item.type === 'EXPENSE') {
+          expense += item.amount_paise;
+        }
+      }
+    }
+
+    return {
+      totalIncomePaise: income,
+      totalExpensePaise: expense,
+      netPaise: income - expense,
+      totalTransfersPaise: transfers,
+    };
+  }, [items]);
+
   useEffect(() => {
     if (isFocused) {
       fetchItems();
@@ -90,6 +115,138 @@ export const HistoryScreen = () => {
     fetchItems();
     setIsRefreshing(false);
   };
+
+  const renderKPIHeader = () => (
+    <Surface
+      style={[
+        styles.kpiCard,
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.outlineVariant,
+        },
+      ]}
+      elevation={1}
+    >
+      <View style={styles.kpiHeaderRow}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <MaterialCommunityIcons name="finance" size={18} color={theme.colors.primary} />
+          <Text variant="labelMedium" style={{ color: theme.colors.onSurface, fontWeight: '700', marginLeft: 6 }}>
+            {selectedType === 'TRANSFER'
+              ? 'Transfers Summary'
+              : selectedType === 'EXPENSE'
+              ? 'Filtered Expense Summary'
+              : selectedType === 'INCOME'
+              ? 'Filtered Income Summary'
+              : 'Filtered Summary'}
+          </Text>
+        </View>
+        <View style={[styles.kpiPill, { backgroundColor: `${theme.colors.primary}18` }]}>
+          <Text variant="labelSmall" style={{ color: theme.colors.primary, fontWeight: '700' }}>
+            {items.length} {items.length === 1 ? 'record' : 'records'}
+          </Text>
+        </View>
+      </View>
+
+      <Divider style={{ marginVertical: 10, backgroundColor: theme.colors.outlineVariant }} />
+
+      {selectedType === 'TRANSFER' ? (
+        <View style={styles.kpiMetricsRow}>
+          <View style={styles.kpiMetricBox}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
+              <MaterialCommunityIcons name="bank-transfer" size={16} color={theme.colors.primary} />
+              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 4 }}>
+                TOTAL TRANSFERRED
+              </Text>
+            </View>
+            <Text variant="titleMedium" style={{ color: theme.colors.primary, fontWeight: '700' }}>
+              {formatPaiseToRupees(totalTransfersPaise)}
+            </Text>
+          </View>
+
+          <Divider style={styles.kpiVerticalDivider} />
+
+          <View style={styles.kpiMetricBox}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
+              <MaterialCommunityIcons name="format-list-numbered" size={16} color={theme.colors.onSurfaceVariant} />
+              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 4 }}>
+                TOTAL TRANSFERS
+              </Text>
+            </View>
+            <Text variant="titleMedium" style={{ color: theme.colors.onSurface, fontWeight: '700' }}>
+              {items.length}
+            </Text>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.kpiMetricsRow}>
+          {/* Income KPI */}
+          <View style={styles.kpiMetricBox}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
+              <MaterialCommunityIcons name="arrow-down-circle" size={14} color={theme.colors.income} />
+              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 4 }}>
+                INCOME
+              </Text>
+            </View>
+            <Text
+              variant="titleMedium"
+              style={{ color: theme.colors.income, fontWeight: '700' }}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              +{formatPaiseToRupees(totalIncomePaise)}
+            </Text>
+          </View>
+
+          <Divider style={styles.kpiVerticalDivider} />
+
+          {/* Expense KPI */}
+          <View style={styles.kpiMetricBox}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
+              <MaterialCommunityIcons name="arrow-up-circle" size={14} color={theme.colors.expense} />
+              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 4 }}>
+                EXPENSE
+              </Text>
+            </View>
+            <Text
+              variant="titleMedium"
+              style={{ color: theme.colors.expense, fontWeight: '700' }}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              -{formatPaiseToRupees(totalExpensePaise)}
+            </Text>
+          </View>
+
+          <Divider style={styles.kpiVerticalDivider} />
+
+          {/* Net KPI */}
+          <View style={styles.kpiMetricBox}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
+              <MaterialCommunityIcons
+                name="scale-balance"
+                size={14}
+                color={netPaise >= 0 ? theme.colors.income : theme.colors.expense}
+              />
+              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 4 }}>
+                NET
+              </Text>
+            </View>
+            <Text
+              variant="titleMedium"
+              style={{
+                color: netPaise >= 0 ? theme.colors.income : theme.colors.expense,
+                fontWeight: '700',
+              }}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              {netPaise >= 0 ? '+' : ''}{formatPaiseToRupees(netPaise)}
+            </Text>
+          </View>
+        </View>
+      )}
+    </Surface>
+  );
 
   const renderItem = ({ item }: { item: HistoryItem }) => {
     if (item.isTransfer) {
@@ -280,6 +437,7 @@ export const HistoryScreen = () => {
         contentContainerStyle={styles.listContent}
         refreshing={isRefreshing}
         onRefresh={handleRefresh}
+        ListHeaderComponent={renderKPIHeader}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <MaterialCommunityIcons
@@ -356,5 +514,37 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 60,
     paddingHorizontal: 20,
+  },
+  kpiCard: {
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+  },
+  kpiHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  kpiPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  kpiMetricsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  kpiMetricBox: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 2,
+    paddingHorizontal: 2,
+  },
+  kpiVerticalDivider: {
+    width: 1,
+    height: 32,
+    marginHorizontal: 4,
   },
 });
