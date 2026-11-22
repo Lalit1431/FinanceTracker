@@ -109,4 +109,29 @@ export const migrations: Migration[] = [
       `);
     },
   },
+  {
+    version: 3,
+    name: 'create_financial_goals_table',
+    up: (db: SQLiteDatabase) => {
+      db.execSync(`
+        CREATE TABLE IF NOT EXISTS financial_goals (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          goal_type TEXT NOT NULL CHECK (goal_type IN ('LOAN', 'INVESTMENT')),
+          category_id INTEGER NOT NULL REFERENCES categories(id),
+          target_amount_paise INTEGER NOT NULL CHECK (target_amount_paise > 0),
+          monthly_target_paise INTEGER NOT NULL CHECK (monthly_target_paise > 0),
+          start_date TEXT NOT NULL,
+          end_date TEXT,
+          tenure_months INTEGER,
+          notes TEXT,
+          is_active INTEGER NOT NULL DEFAULT 1,
+          created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+          updated_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_goals_category ON financial_goals(category_id);
+        CREATE INDEX IF NOT EXISTS idx_goals_active ON financial_goals(is_active);
+      `);
+    },
+  },
 ];

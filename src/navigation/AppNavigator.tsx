@@ -16,6 +16,7 @@ import { TransactionDetailsScreen } from '../screens/TransactionDetails/Transact
 import { CategoriesScreen } from '../screens/Categories/CategoriesScreen';
 import { AccountsScreen } from '../screens/Accounts/AccountsScreen';
 import { BudgetsScreen } from '../screens/Budgets/BudgetsScreen';
+import { GoalsScreen } from '../screens/Goals/GoalsScreen';
 import { BackupRestoreScreen } from '../screens/BackupRestore/BackupRestoreScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -183,6 +184,13 @@ export const AppNavigator = () => {
         component={BudgetsScreen}
         options={{
           title: 'Monthly Budgets',
+        }}
+      />
+      <Stack.Screen
+        name="Goals"
+        component={GoalsScreen}
+        options={{
+          title: 'Loans & Targets',
         }}
       />
       <Stack.Screen

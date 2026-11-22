@@ -18,6 +18,7 @@ interface ParsedBackup {
   transactionsCount: number;
   transfersCount: number;
   budgetsCount: number;
+  goalsCount?: number;
   exportedAt?: string;
 }
 
@@ -42,6 +43,7 @@ export const BackupRestoreScreen = () => {
       const transactions = db.getAllSync('SELECT * FROM transactions;');
       const transfers = db.getAllSync('SELECT * FROM transfers;');
       const budgets = db.getAllSync('SELECT * FROM budgets;');
+      const goals = db.getAllSync('SELECT * FROM financial_goals;');
       const settings = db.getAllSync('SELECT * FROM app_settings;');
 
       const backupData = {
@@ -54,6 +56,7 @@ export const BackupRestoreScreen = () => {
           transactions,
           transfers,
           budgets,
+          goals,
           settings,
         },
       };
@@ -95,6 +98,7 @@ export const BackupRestoreScreen = () => {
       transactionsCount: parsed.data.transactions?.length || 0,
       transfersCount: parsed.data.transfers?.length || 0,
       budgetsCount: parsed.data.budgets?.length || 0,
+      goalsCount: (parsed.data.goals || parsed.data.financial_goals)?.length || 0,
       exportedAt: parsed.exportedAt,
     };
   };
@@ -164,6 +168,7 @@ export const BackupRestoreScreen = () => {
 
       db.withTransactionSync(() => {
         // Clear existing tables in reverse dependency order
+        db.execSync('DELETE FROM financial_goals;');
         db.execSync('DELETE FROM transactions;');
         db.execSync('DELETE FROM transfers;');
         db.execSync('DELETE FROM budgets;');
@@ -229,16 +234,41 @@ export const BackupRestoreScreen = () => {
             );
           }
         }
+
+        // Restore financial goals
+        const goalsList = parsedToRestore.data.goals || parsedToRestore.data.financial_goals;
+        if (goalsList) {
+          for (const g of goalsList) {
+            db.runSync(
+              `INSERT INTO financial_goals (id, name, goal_type, category_id, target_amount_paise, monthly_target_paise, start_date, end_date, tenure_months, notes, is_active)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+              [
+                g.id,
+                g.name,
+                g.goal_type,
+                g.category_id,
+                g.target_amount_paise,
+                g.monthly_target_paise,
+                g.start_date,
+                g.end_date ?? null,
+                g.tenure_months ?? null,
+                g.notes ?? null,
+                g.is_active ?? 1,
+              ]
+            );
+          }
+        }
       });
 
       refreshAll();
       const txCount = parsedToRestore.data.transactions.length;
       const catCount = parsedToRestore.data.categories.length;
+      const goalsCount = (parsedToRestore.data.goals || parsedToRestore.data.financial_goals)?.length || 0;
       setSelectedBackup(null);
       setRestoreJson('');
       Alert.alert(
         'Success',
-        `Financial data restored successfully!\n\n• ${txCount} Transactions restored\n• ${catCount} Categories restored`
+        `Financial data restored successfully!\n\n• ${txCount} Transactions restored\n• ${catCount} Categories restored${goalsCount > 0 ? `\n• ${goalsCount} Goals & Loans restored` : ''}`
       );
     } catch (err: any) {
       Alert.alert('Restore Error', err.message || 'Failed to restore data. No changes made.');
@@ -425,7 +455,8 @@ export const BackupRestoreScreen = () => {
                   • {selectedBackup.accountsCount} Accounts{'\n'}
                   • {selectedBackup.transactionsCount} Transactions{'\n'}
                   • {selectedBackup.transfersCount} Transfers{'\n'}
-                  • {selectedBackup.budgetsCount} Budgets{'\n\n'}
+                  • {selectedBackup.budgetsCount} Budgets{'\n'}
+                  {selectedBackup.goalsCount ? `• ${selectedBackup.goalsCount} Financial Goals / Loans\n` : ''}{'\n'}
                 </>
               ) : null}
               Are you sure you want to proceed?

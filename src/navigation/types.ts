@@ -15,5 +15,6 @@ export type RootStackParamList = {
   Categories: undefined;
   Accounts: undefined;
   Budgets: undefined;
+  Goals: undefined;
   BackupRestore: undefined;
 };

@@ -86,3 +86,30 @@ export interface AppSetting {
 }
 
 export type ThemeMode = 'light' | 'dark' | 'system';
+
+export type GoalType = 'LOAN' | 'INVESTMENT';
+
+export interface FinancialGoal {
+  id: number;
+  name: string;
+  goal_type: GoalType;
+  category_id: number;
+  category_name?: string;
+  category_icon?: string;
+  category_color?: string;
+  target_amount_paise: number;
+  monthly_target_paise: number;
+  start_date: string; // YYYY-MM-DD
+  end_date?: string | null;
+  tenure_months?: number | null;
+  notes?: string | null;
+  is_active: number;
+  created_at: string;
+  updated_at?: string | null;
+  // Computed fields
+  total_paid_paise?: number;
+  current_month_paid_paise?: number;
+  progress_percentage?: number;
+  remaining_paise?: number;
+  remaining_months?: number;
+}

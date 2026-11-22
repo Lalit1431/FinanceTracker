@@ -198,6 +198,15 @@ export const SettingsScreen = () => {
         <Divider style={styles.divider} />
 
         <SettingNavRow
+          icon="flag-checkered"
+          title="Loans & Investment Targets"
+          subtitle="Track monthly EMIs, debt payoffs, and SIP goals"
+          onPress={() => navigation.navigate('Goals')}
+          theme={theme}
+        />
+        <Divider style={styles.divider} />
+
+        <SettingNavRow
           icon="database-sync-outline"
           title="Backup & Restore"
           subtitle="Export and restore local offline database"

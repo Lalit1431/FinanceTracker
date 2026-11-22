@@ -11,6 +11,8 @@ import { useFinanceStore } from '../../store/financeStore';
 import { formatPaiseToRupees } from '../../utils/currency';
 import { getCurrentMonthRange, formatDisplayDate } from '../../utils/dateUtils';
 import { analyticsService, ExtendedKPIs, MonthlyTrendData } from '../../services/analyticsService';
+import { goalRepository } from '../../database/goalRepository';
+import { FinancialGoal } from '../../types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -23,6 +25,7 @@ export const DashboardScreen = () => {
 
   const [extendedKPIs, setExtendedKPIs] = useState<ExtendedKPIs | null>(null);
   const [trendData, setTrendData] = useState<MonthlyTrendData | null>(null);
+  const [dashboardGoals, setDashboardGoals] = useState<FinancialGoal[]>([]);
 
   const loadData = () => {
     refreshAll();
@@ -30,6 +33,8 @@ export const DashboardScreen = () => {
     setExtendedKPIs(ext);
     const trends = analyticsService.getLast6MonthsTrends();
     setTrendData(trends);
+    const goalsList = goalRepository.getAll(true);
+    setDashboardGoals(goalsList);
   };
 
   useEffect(() => {
@@ -365,6 +370,76 @@ export const DashboardScreen = () => {
         </Surface>
       )}
 
+      {/* Loans & Monthly Targets Card */}
+      <Surface style={[styles.goalsCard, { backgroundColor: theme.colors.surface }]} elevation={2}>
+        <View style={styles.sectionHeaderRow}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <MaterialCommunityIcons name="flag-checkered" size={22} color={theme.colors.primary} />
+            <Text variant="titleMedium" style={{ color: theme.colors.onSurface, fontWeight: '700', marginLeft: 8 }}>
+              Loans & Target Commitments
+            </Text>
+          </View>
+          <Button
+            compact
+            mode="text"
+            textColor={theme.colors.primary}
+            onPress={() => navigation.navigate('Goals')}
+          >
+            {dashboardGoals.length > 0 ? 'Manage' : '+ Set Target'}
+          </Button>
+        </View>
+
+        {dashboardGoals.length === 0 ? (
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+            Track your personal loans, EMIs, and monthly investment targets with automatic payment tracking.
+          </Text>
+        ) : (
+          <View style={{ marginTop: 6 }}>
+            {dashboardGoals.slice(0, 3).map((g) => {
+              const isLoan = g.goal_type === 'LOAN';
+              const curPaid = g.current_month_paid_paise ?? 0;
+              const isMet = curPaid >= g.monthly_target_paise;
+              return (
+                <TouchableOpacity
+                  key={g.id}
+                  style={styles.dashboardGoalRow}
+                  activeOpacity={0.7}
+                  onPress={() => navigation.navigate('Goals')}
+                >
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, fontWeight: '600' }}>
+                      {g.name}
+                    </Text>
+                    <Text variant="labelSmall" style={{ color: isMet ? theme.colors.income : theme.colors.expense, fontWeight: '700' }}>
+                      {isMet ? '✅ Paid This Month' : `⏳ ${formatPaiseToRupees(Math.max(0, g.monthly_target_paise - curPaid))} Pending`}
+                    </Text>
+                  </View>
+                  <View style={[styles.dashboardProgressBarTrack, { backgroundColor: theme.colors.elevation.level2 }]}>
+                    <View
+                      style={[
+                        styles.dashboardProgressBarFill,
+                        {
+                          width: `${Math.min(100, g.progress_percentage ?? 0)}%`,
+                          backgroundColor: isLoan ? theme.colors.primary : theme.colors.income,
+                        },
+                      ]}
+                    />
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+                    <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                      {formatPaiseToRupees(g.total_paid_paise ?? 0)} of {formatPaiseToRupees(g.target_amount_paise)} ({g.progress_percentage}%)
+                    </Text>
+                    <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                      Target: {formatPaiseToRupees(g.monthly_target_paise)}/mo
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+      </Surface>
+
       {/* Accounts List Section */}
       <View style={styles.sectionHeaderRow}>
         <Text variant="titleMedium" style={{ color: theme.colors.onSurface, fontWeight: '700' }}>
@@ -684,5 +759,24 @@ const styles = StyleSheet.create({
   },
   txnRight: {
     alignItems: 'flex-end',
+  },
+  goalsCard: {
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 16,
+  },
+  dashboardGoalRow: {
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  dashboardProgressBarTrack: {
+    height: 6,
+    borderRadius: 3,
+    marginTop: 6,
+    overflow: 'hidden',
+  },
+  dashboardProgressBarFill: {
+    height: 6,
+    borderRadius: 3,
   },
 });
