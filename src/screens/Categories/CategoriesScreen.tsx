@@ -11,12 +11,22 @@ import {
   TextInput,
   Button,
   Dialog,
+  Divider,
+  IconButton,
 } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../navigation/types';
 import { useAppTheme } from '../../theme';
 import { useFinanceStore } from '../../store/financeStore';
 import { categoryRepository } from '../../database/categoryRepository';
-import { Category, TransactionType } from '../../types';
+import { transactionRepository } from '../../database/transactionRepository';
+import { Category, TransactionType, Transaction } from '../../types';
+import { formatPaiseToRupees } from '../../utils/currency';
+import { formatDisplayDate } from '../../utils/dateUtils';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const PRESET_COLORS = [
   '#1565C0', '#0288D1', '#00897B', '#2E7D32',
@@ -35,6 +45,7 @@ const PRESET_ICONS = [
 
 export const CategoriesScreen = () => {
   const theme = useAppTheme();
+  const navigation = useNavigation<NavigationProp>();
   const { refreshCategories } = useFinanceStore();
 
   const [type, setType] = useState<TransactionType>('EXPENSE');
@@ -53,6 +64,20 @@ export const CategoriesScreen = () => {
     count: 0,
     name: '',
   });
+
+  // Records Modal States
+  const [viewingCategory, setViewingCategory] = useState<Category | null>(null);
+  const [categoryRecords, setCategoryRecords] = useState<Transaction[]>([]);
+  const [recordsModalVisible, setRecordsModalVisible] = useState(false);
+
+  const handleViewCategoryTransactions = (cat: Category) => {
+    const txns = transactionRepository.getAll({
+      categoryId: cat.id,
+    });
+    setViewingCategory(cat);
+    setCategoryRecords(txns);
+    setRecordsModalVisible(true);
+  };
 
   const loadData = () => {
     const list = categoryRepository.getByType(type, false);
@@ -327,6 +352,17 @@ export const CategoriesScreen = () => {
             ))}
           </View>
 
+          {editingCategory && (
+            <Button
+              mode="contained-tonal"
+              icon="format-list-bulleted"
+              style={{ marginTop: 14 }}
+              onPress={() => handleViewCategoryTransactions(editingCategory)}
+            >
+              View Linked Records ({categoryRepository.getUsageCount(editingCategory.id)})
+            </Button>
+          )}
+
           <View style={styles.modalActions}>
             {editingCategory ? (
               <Button
@@ -410,6 +446,100 @@ export const CategoriesScreen = () => {
             </Button>
           </Dialog.Actions>
         </Dialog>
+        {/* Category Records Modal */}
+        <Modal
+          visible={recordsModalVisible}
+          onDismiss={() => setRecordsModalVisible(false)}
+          contentContainerStyle={[styles.modalBox, { backgroundColor: theme.colors.surface, maxHeight: '85%' }]}
+        >
+          {viewingCategory && (
+            <View>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={[styles.iconWrapper, { backgroundColor: `${viewingCategory.color}20` }]}>
+                  <MaterialCommunityIcons
+                    name={(viewingCategory.icon as any) || 'circle'}
+                    size={24}
+                    color={viewingCategory.color}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text variant="titleMedium" style={{ color: theme.colors.onSurface, fontWeight: '700' }}>
+                    {viewingCategory.name} Records
+                  </Text>
+                  <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                    {categoryRecords.length} recorded transaction{categoryRecords.length === 1 ? '' : 's'}
+                  </Text>
+                </View>
+                <IconButton icon="close" size={20} onPress={() => setRecordsModalVisible(false)} />
+              </View>
+
+              <Divider style={{ marginVertical: 10 }} />
+
+              {categoryRecords.length === 0 ? (
+                <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+                  <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                    No transactions recorded for this category yet
+                  </Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={categoryRecords}
+                  keyExtractor={(item) => item.id.toString()}
+                  style={{ maxHeight: 340 }}
+                  showsVerticalScrollIndicator={true}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: 12,
+                        borderRadius: 12,
+                        backgroundColor: theme.colors.elevation.level1,
+                        marginBottom: 8,
+                      }}
+                      onPress={() => {
+                        setRecordsModalVisible(false);
+                        handleCloseModal();
+                        navigation.navigate('TransactionDetails', { transactionId: item.id });
+                      }}
+                    >
+                      <View style={{ flex: 1, marginRight: 8 }}>
+                        <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, fontWeight: '600' }}>
+                          {item.description}
+                        </Text>
+                        <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>
+                          {formatDisplayDate(item.transaction_date)} • {item.account_name} ({item.payment_method})
+                        </Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
+                        <Text
+                          variant="bodyMedium"
+                          style={{
+                            color: item.type === 'INCOME' ? theme.colors.income : theme.colors.expense,
+                            fontWeight: '700',
+                          }}
+                        >
+                          {item.type === 'INCOME' ? '+' : '-'}{formatPaiseToRupees(item.amount_paise)}
+                        </Text>
+                        <MaterialCommunityIcons name="chevron-right" size={16} color={theme.colors.onSurfaceVariant} style={{ marginTop: 2 }} />
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                />
+              )}
+
+              <Divider style={{ marginVertical: 10 }} />
+
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+                <Button mode="contained" buttonColor={theme.colors.primary} onPress={() => setRecordsModalVisible(false)}>
+                  Close
+                </Button>
+              </View>
+            </View>
+          )}
+        </Modal>
       </Portal>
     </View>
   );

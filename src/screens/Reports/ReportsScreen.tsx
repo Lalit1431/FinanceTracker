@@ -1,16 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Dimensions, Alert } from 'react-native';
-import { Text, Surface, ProgressBar, Button, SegmentedButtons } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, Dimensions, Alert, TouchableOpacity, FlatList } from 'react-native';
+import { Text, Surface, ProgressBar, Button, SegmentedButtons, Modal, Portal, Divider, IconButton } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useIsFocused } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../navigation/types';
 import { PieChart } from 'react-native-chart-kit';
 import { useAppTheme } from '../../theme';
 import { getDb } from '../../database/database';
+import { transactionRepository } from '../../database/transactionRepository';
+import { Transaction } from '../../types';
 import { formatPaiseToRupees } from '../../utils/currency';
-import { getCurrentMonthRange } from '../../utils/dateUtils';
+import { getCurrentMonthRange, formatDisplayDate } from '../../utils/dateUtils';
 import { analyticsService, ChartCategoryData, CHART_PALETTES } from '../../services/analyticsService';
 import { reportService } from '../../services/reportService';
 import { DateRangeFilter } from '../../components/DateRangeFilter';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 interface CategoryBreakdown {
   id: number;
@@ -22,6 +28,7 @@ interface CategoryBreakdown {
 
 export const ReportsScreen = () => {
   const theme = useAppTheme();
+  const navigation = useNavigation<NavigationProp>();
   const isFocused = useIsFocused();
 
   const initialMonth = getCurrentMonthRange();
@@ -33,6 +40,27 @@ export const ReportsScreen = () => {
   const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdown[]>([]);
   const [pieData, setPieData] = useState<ChartCategoryData[]>([]);
   const [isExportingCSV, setIsExportingCSV] = useState(false);
+
+  // Category Records Modal State
+  const [selectedCategory, setSelectedCategory] = useState<CategoryBreakdown | null>(null);
+  const [categoryTransactions, setCategoryTransactions] = useState<Transaction[]>([]);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+
+  const handleCategoryClick = (cat: CategoryBreakdown) => {
+    const start = startDate || initialMonth.start;
+    const end = endDate || initialMonth.end;
+
+    const txns = transactionRepository.getAll({
+      categoryId: cat.id,
+      startDate: start,
+      endDate: end,
+      type: reportType,
+    });
+
+    setSelectedCategory(cat);
+    setCategoryTransactions(txns);
+    setShowCategoryModal(true);
+  };
 
   const fetchReportData = () => {
     const start = startDate || initialMonth.start;
@@ -248,6 +276,9 @@ export const ReportsScreen = () => {
       <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
         {reportType === 'INCOME' ? 'Income by Category / Source' : 'Expense by Category'}
       </Text>
+      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: -6, marginBottom: 12 }}>
+        Tap any category to view its individual transactions
+      </Text>
 
       {categoryBreakdown.length === 0 ? (
         <Surface style={[styles.emptyCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
@@ -268,7 +299,12 @@ export const ReportsScreen = () => {
             const progress = currentTotal > 0 ? cat.total_paise / currentTotal : 0;
 
             return (
-              <View key={cat.id} style={styles.catRow}>
+              <TouchableOpacity
+                key={cat.id}
+                style={styles.catRow}
+                activeOpacity={0.7}
+                onPress={() => handleCategoryClick(cat)}
+              >
                 <View style={styles.catHeader}>
                   <View style={styles.catLeft}>
                     <View
@@ -300,9 +336,17 @@ export const ReportsScreen = () => {
                     >
                       {formatPaiseToRupees(cat.total_paise)}
                     </Text>
-                    <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                      {percentage.toFixed(1)}%
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                        {percentage.toFixed(1)}%
+                      </Text>
+                      <MaterialCommunityIcons
+                        name="chevron-right"
+                        size={16}
+                        color={theme.colors.onSurfaceVariant}
+                        style={{ marginLeft: 2 }}
+                      />
+                    </View>
                   </View>
                 </View>
 
@@ -311,11 +355,123 @@ export const ReportsScreen = () => {
                   color={cat.color || (reportType === 'INCOME' ? theme.colors.income : theme.colors.primary)}
                   style={styles.progressBar}
                 />
-              </View>
+              </TouchableOpacity>
             );
           })}
         </Surface>
       )}
+
+      {/* Category Transactions Modal */}
+      <Portal>
+        <Modal
+          visible={showCategoryModal}
+          onDismiss={() => setShowCategoryModal(false)}
+          contentContainerStyle={[
+            styles.categoryModalBox,
+            { backgroundColor: theme.colors.surface },
+          ]}
+        >
+          {selectedCategory && (
+            <View>
+              {/* Modal Header */}
+              <View style={styles.modalCategoryHeader}>
+                <View
+                  style={[
+                    styles.catIconCircleLarge,
+                    { backgroundColor: `${selectedCategory.color}20` },
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name={(selectedCategory.icon as any) || 'circle'}
+                    size={28}
+                    color={selectedCategory.color}
+                  />
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text variant="titleMedium" style={{ color: theme.colors.onSurface, fontWeight: '700' }}>
+                    {selectedCategory.name}
+                  </Text>
+                  <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                    {categoryTransactions.length} transaction{categoryTransactions.length === 1 ? '' : 's'} • Total: {formatPaiseToRupees(selectedCategory.total_paise)}
+                  </Text>
+                </View>
+                <IconButton
+                  icon="close"
+                  size={20}
+                  onPress={() => setShowCategoryModal(false)}
+                />
+              </View>
+
+              <Divider style={{ marginVertical: 10 }} />
+
+              {/* Transactions List */}
+              {categoryTransactions.length === 0 ? (
+                <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+                  <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                    No transactions found for this period
+                  </Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={categoryTransactions}
+                  keyExtractor={(item) => item.id.toString()}
+                  style={{ maxHeight: 340 }}
+                  showsVerticalScrollIndicator={true}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      style={[styles.txnModalCard, { backgroundColor: theme.colors.elevation.level1 }]}
+                      onPress={() => {
+                        setShowCategoryModal(false);
+                        navigation.navigate('TransactionDetails', { transactionId: item.id });
+                      }}
+                    >
+                      <View style={{ flex: 1, marginRight: 8 }}>
+                        <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, fontWeight: '600' }}>
+                          {item.description}
+                        </Text>
+                        <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>
+                          {formatDisplayDate(item.transaction_date)} • {item.account_name} ({item.payment_method})
+                        </Text>
+                        {item.notes ? (
+                          <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, fontStyle: 'italic', marginTop: 1 }}>
+                            Note: {item.notes}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
+                        <Text
+                          variant="bodyMedium"
+                          style={{
+                            color: item.type === 'INCOME' ? theme.colors.income : theme.colors.expense,
+                            fontWeight: '700',
+                          }}
+                        >
+                          {item.type === 'INCOME' ? '+' : '-'}{formatPaiseToRupees(item.amount_paise)}
+                        </Text>
+                        <MaterialCommunityIcons name="chevron-right" size={16} color={theme.colors.onSurfaceVariant} style={{ marginTop: 2 }} />
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                />
+              )}
+
+              <Divider style={{ marginVertical: 10 }} />
+
+              {/* Modal Actions */}
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+                <Button
+                  mode="contained"
+                  buttonColor={theme.colors.primary}
+                  onPress={() => setShowCategoryModal(false)}
+                >
+                  Close
+                </Button>
+              </View>
+            </View>
+          )}
+        </Modal>
+      </Portal>
     </ScrollView>
   );
 };
@@ -402,5 +558,30 @@ const styles = StyleSheet.create({
   progressBar: {
     height: 6,
     borderRadius: 3,
+  },
+  categoryModalBox: {
+    margin: 20,
+    padding: 18,
+    borderRadius: 20,
+    maxHeight: '85%',
+  },
+  modalCategoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  catIconCircleLarge: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  txnModalCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 8,
   },
 });
